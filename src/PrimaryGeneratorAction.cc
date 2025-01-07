@@ -51,6 +51,7 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
 
   xInit = 0.0*cm;
   yInit = 0.0*cm;
+  //zInit = -15.0*cm + 67.0*mm;
   zInit = 0.0*cm;
 
   ///////////////////////
@@ -60,9 +61,9 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
   Ekin = (TMath::Sqrt(_particleMomentum*_particleMomentum + m*m) - m);
 
   //G4cout<<"_particleMomentum = "<<_particleMomentum<<G4endl
+  //	<<"m                 = "<<m<<G4endl
   //	<<"_ThetaAngle       = "<<_ThetaAngle*180.0/TMath::Pi()<<G4endl
   //	<<"_PhiAngle         = "<<_PhiAngle*180.0/TMath::Pi()<<G4endl;
-
   //_ThetaAngle = _ThetaAngle + (-1 + 2*G4UniformRand())*2*TMath::Pi()/360;//mearing of one degree
   //_PhiAngle   = _PhiAngle   + (-1 + 2*G4UniformRand())*2*TMath::Pi()/360;//mearing of one degree
 

@@ -224,6 +224,8 @@ void SteppingAction::UserSteppingAction(const G4Step* aStep)
 	//hitInfo.TimeLeftBar = _timeLeftBar;
 	//G4cout<<"sd->"<<G4endl;
 	sd->ProcessHits_fTOF(aStep, NULL, hitInfo);
+	//G4Track* aNonConstTrack = const_cast<G4Track*>(aTrack);
+	//aNonConstTrack->SetTrackStatus(fStopAndKill);
       }
       break;
     case FresnelReflection:

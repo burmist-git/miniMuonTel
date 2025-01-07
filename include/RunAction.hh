@@ -35,7 +35,7 @@ public:
   EventData EventInfo;
 
   G4int _nPhot;
-  static const G4int _nPhotMax = 20000;
+  static const G4int _nPhotMax = 2000000;
   G4int _TrackID[_nPhotMax];
   G4int _ParentID[_nPhotMax];
   G4double _Energy[_nPhotMax];

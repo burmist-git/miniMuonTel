@@ -77,8 +77,8 @@ void DetectorConstruction::DefineMaterials()
   G4double fractionmass;
 
   // Define elements
-  //G4Element* H = 
-  //new G4Element("Hydrogen", symbol = "H", z = 1., a = 1.01*g/mole);
+  G4Element* H = 
+    new G4Element("Hydrogen", symbol = "H", z = 1., a = 1.01*g/mole);
   G4Element* C = 
     new G4Element("Carbon",   symbol = "C", z = 6., a = 12.01*g/mole);
   G4Element* N = 
@@ -107,6 +107,10 @@ void DetectorConstruction::DefineMaterials()
   SiO2->AddElement(Si, natoms = 1);
   SiO2->AddElement(O , natoms = 2);
 
+  C12H26 = new G4Material("mineraloil", density = 0.870*g/cm3, ncomponents = 2);
+  C12H26->AddElement(C, natoms = 12);
+  C12H26->AddElement(H, natoms = 26);
+  
   // Aerogel Material (SiO2)
   Aerogel = new G4Material("Aerogel", density = 2000*g/m3, ncomponents = 2);
   Aerogel->AddElement(Si, natoms = 1);
@@ -186,6 +190,7 @@ void DetectorConstruction::DefineMaterials()
     // mean free path length - taken as probablility equal 1/e
     // that the photon will be absorbed
     QuartzAbsorption[i] = (-1)/log(QuartzAbsorption[i])*100*cm;
+    //QuartzAbsorption[i] = 4.0*cm;
     //EpotekAbsorption[i] = (-1)/log(EpotekAbsorption[i])*
     //epotekBarJoint.thickness;
   }
@@ -210,7 +215,7 @@ void DetectorConstruction::DefineMaterials()
   G4MaterialPropertiesTable* QuartzMPT = new G4MaterialPropertiesTable();
   QuartzMPT->AddProperty("RINDEX", PhotonEnergy, QuartzRefractiveIndex, num);
   QuartzMPT->AddProperty("ABSLENGTH", PhotonEnergy, QuartzAbsorption, num);
-
+  
   // C4F10
   G4MaterialPropertiesTable* C4F10MPT = new G4MaterialPropertiesTable();
   C4F10MPT->AddProperty("RINDEX", PhotonEnergy, C4F10RefractiveIndex, num);
@@ -233,6 +238,7 @@ void DetectorConstruction::DefineMaterials()
 
   // Assign this material to the bars
   SiO2->SetMaterialPropertiesTable(QuartzMPT);
+  C12H26->SetMaterialPropertiesTable(QuartzMPT);  
   SiO2_cladd->SetMaterialPropertiesTable(CladdingMPT);
   C4F10->SetMaterialPropertiesTable(C4F10MPT);
   Aerogel->SetMaterialPropertiesTable(AerogelMPT);
@@ -243,68 +249,62 @@ void DetectorConstruction::DefineMaterials()
 G4VPhysicalVolume* DetectorConstruction::Construct()
 {
 
-  G4double world_sizeX = 4.0*m;
-  G4double world_sizeY = 4.0*m;
-  G4double world_sizeZ = 6.0*m;
+  bool overlapsChecking = false;
+  
+  G4double world_sizeX = 0.5*m;
+  G4double world_sizeY = 0.5*m;
+  G4double world_sizeZ = 0.7*m;
 
-  G4double c4f10_body_sizeX = 150*cm;
-  G4double c4f10_body_sizeY = 120*2*cm;
-  G4double c4f10_body_sizeZ = 93*cm;
+  G4double mineralOil_sizeX = 25.0*cm;
+  G4double mineralOil_sizeY = 25.0*cm;
+  G4double mineralOil_sizeZ = 25.0*cm;
+  G4double mineralOil_X0 = 0.0*mm;
+  G4double mineralOil_Y0 = 0.0*mm;
+  G4double mineralOil_Z0 = 0.0*mm;
+  //
+  G4double mineralOilFrame_wall_thickness = 1.0*mm;
+  G4double mineralOilFrame_sizeX = mineralOil_sizeX + mineralOilFrame_wall_thickness*2.0;
+  G4double mineralOilFrame_sizeY = mineralOil_sizeY + mineralOilFrame_wall_thickness*2.0;
+  G4double mineralOilFrame_sizeZ = mineralOil_sizeZ + mineralOilFrame_wall_thickness*2.0;
+  G4double mineralOilFrame_X0 = 0.0*mm;
+  G4double mineralOilFrame_Y0 = 0.0*mm;
+  G4double mineralOilFrame_Z0 = 0.0*mm;
+  
+  //
+  G4double parabolicMirror_f  = 10.0*cm;
+  G4double parabolicMirror_R1 = 0.0*cm;
+  G4double parabolicMirror_H  = 3.0*cm;
+  G4double parabolicMirror_R2 = 2.0*TMath::Sqrt(parabolicMirror_H*parabolicMirror_f);
+  G4double parabolicMirror_X0 = 0.0;
+  G4double parabolicMirror_Y0 = 0.0;
+  G4double parabolicMirror_Z0 = -10.0*cm;
+  //
+  G4double parabolicMirrorSub_R1 = parabolicMirror_R1;
+  G4double parabolicMirrorSub_H  = parabolicMirror_H + 2.0*mm;
+  G4double parabolicMirrorSub_R2 = 2.0*TMath::Sqrt(parabolicMirrorSub_H*parabolicMirror_f);
+  //
+  G4double parabolicMirrorFrame_minimum_wall_thickness = 5.0*mm;
+  G4double parabolicMirrorFrame_sizeX = parabolicMirror_R2*2 + parabolicMirrorFrame_minimum_wall_thickness*2.0;
+  G4double parabolicMirrorFrame_sizeY = parabolicMirrorFrame_sizeX;
+  G4double parabolicMirrorFrame_sizeZ = parabolicMirror_H + parabolicMirrorFrame_minimum_wall_thickness;
 
-  G4double aerogel_body_sizeX = 30*cm;
-  G4double aerogel_body_sizeY = 30*2*cm;
-  G4double aerogel_body_sizeZ = 5*cm;
-
-  G4double al_thickness  = 1.0*mm;
-  G4double al_body_sizeX = c4f10_body_sizeX + al_thickness*2;
-  G4double al_body_sizeY = c4f10_body_sizeY + al_thickness*2;
-  G4double al_body_sizeZ = c4f10_body_sizeZ + al_thickness*2;
-
-  G4double al_body_X0 = 0.0*m;
-  G4double al_body_Y0 = 0.0*m;
-  G4double al_body_Z0 = 1.57*m;
-
-  G4double c4f10_body_X0 = 0.0*m;
-  G4double c4f10_body_Y0 = 0.0*m;
-  G4double c4f10_body_Z0 = 0.0*m;
-
-  G4double aerogel_body_X0 = 0.0*m;
-  G4double aerogel_body_Y0 = 0.0*m;
-  G4double aerogel_body_Z0 = 0.0*m-300*mm;
-
-  G4double sphericalMirror_R  = 2400.0*mm;
-  G4double sphericalMirror_Thikness = 5.0*mm;
-  G4double sphericalMirror_body_X0 =   0.0*mm;
-  G4double sphericalMirror_body_Y0 = 777.7*mm;
-  G4double sphericalMirror_body_Z0 =-340.5*mm - al_body_Z0-4*mm;
-  //G4double sphericalMirror_body_Y0 = 0.0*mm;
-  //G4double sphericalMirror_body_Z0 = -al_body_Z0;
-  G4double sphericalMirror_pSPhi   =   0.0*deg;
-  G4double sphericalMirror_pDPhi   = 360.0*deg;
-  G4double sphericalMirror_pSTheta = 0.0*deg;
-  G4double sphericalMirror_pDTheta = 30.0*deg;
-  G4double sphericalMirror_angle   = 11.7*deg;
-
-  G4double flatMirror_lx = 370*2*mm;
-  G4double flatMirror_ly = 387*2*mm;
-  G4double flatMirror_lz = 2*mm;
-  G4double flatMirror_X0 = 0.0*mm;
-  G4double flatMirror_Y0 = 725*mm;
-  G4double flatMirror_Z0 = 1214.25*mm - al_body_Z0;
-  G4double flatMirror_angle = -14.3*deg;
-
-  G4double sensitive_sizeX = 990*mm;
-  G4double sensitive_sizeY = 950*mm;
+  //  
+  //G4double sensitive_sizeX = 20.0*cm;
+  //G4double sensitive_sizeY = 20.0*cm;
+  G4double sensitive_sizeX = mineralOil_sizeX-1.0*mm;
+  G4double sensitive_sizeY = mineralOil_sizeY-1.0*mm;
   G4double sensitive_sizeZ = 2*mm;
-  G4double sensitive_angle = 60*deg;
+  G4double sensitive_X0 = 0.0*cm;
+  G4double sensitive_Y0 = 0.0*cm;
+  G4double sensitive_Z0 = -11.5*mm;
 
-  G4double sensitive_X0 = 0.0;
-  G4double sensitive_Y0 = 850.0;
-  G4double sensitive_Z0 = 1536.5 - al_body_Z0;
-
-  G4RotationMatrix Ra;
-  G4ThreeVector Ta;
-  G4Transform3D Tr;
+  //  
+  G4double sensitiveShield_sizeX = mineralOil_sizeX-1.0*mm;
+  G4double sensitiveShield_sizeY = mineralOil_sizeY-1.0*mm;
+  G4double sensitiveShield_sizeZ = 2*mm;
+  G4double sensitiveShield_X0 = 0.0*cm;
+  G4double sensitiveShield_Y0 = 0.0*cm;
+  G4double sensitiveShield_Z0 = sensitive_Z0 + sensitiveShield_sizeZ/2.0 + sensitive_sizeZ/2.0;
 
   // 
   // Define World Volume
@@ -313,214 +313,180 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
   G4LogicalVolume *world_logical = new G4LogicalVolume(world_solid,Air,"World");
   G4VPhysicalVolume *world_physical = new G4PVPlacement(0,G4ThreeVector(),world_logical,"World",0,false,0);
 
+  //
+  // Mineral oil frame
+  //
+  G4RotationMatrix Ra_mineralOilFrame;
+  G4ThreeVector Ta_mineralOilFrame;
+  G4Transform3D Tr_mineralOilFrame;
+  G4VSolid *mineralOilFrame_solid = new G4Box("mineralOilFrame", mineralOilFrame_sizeX/2.0, mineralOilFrame_sizeY/2.0, mineralOilFrame_sizeZ/2.0);
+  G4LogicalVolume *mineralOilFrame_logical = new G4LogicalVolume(mineralOilFrame_solid, Aluminum,"mineralOilFrame");
+  Ta_mineralOilFrame.setX(mineralOil_X0);
+  Ta_mineralOilFrame.setY(mineralOil_Y0);
+  Ta_mineralOilFrame.setZ(mineralOil_Z0);
+  Tr_mineralOilFrame = G4Transform3D(Ra_mineralOilFrame, Ta_mineralOilFrame);
+  new G4PVPlacement(Tr_mineralOilFrame,      //Transformation
+  		    mineralOilFrame_logical, //its logical volume				 
+  		    "mineralOilFrame",       //its name
+  		    world_logical,           //its mother  volume
+  		    false,	             //no boolean operation
+  		    0,                       //copy number
+  		    overlapsChecking);       //overlapsChecking
+  
+  //
+  // Mineral oil
+  //
+  G4RotationMatrix Ra_mineralOil;
+  G4ThreeVector Ta_mineralOil;
+  G4Transform3D Tr_mineralOil;
+  G4VSolid *mineralOil_solid = new G4Box("mineralOil", mineralOil_sizeX/2.0, mineralOil_sizeY/2.0, mineralOil_sizeZ/2.0);
+  G4LogicalVolume *mineralOil_logical = new G4LogicalVolume(mineralOil_solid, C12H26,"mineralOil");
+  Ta_mineralOil.setX(mineralOil_X0);
+  Ta_mineralOil.setY(mineralOil_Y0);
+  Ta_mineralOil.setZ(mineralOil_Z0);
+  Tr_mineralOil = G4Transform3D(Ra_mineralOil, Ta_mineralOil);
+  new G4PVPlacement(Tr_mineralOil,      //Transformation
+  		    mineralOil_logical, //its logical volume				 
+  		    "mineralOil",       //its name
+  		    mineralOilFrame_logical,   //its mother  volume
+  		    false,	        //no boolean operation
+  		    0,                  //copy number
+  		    overlapsChecking);  //overlapsChecking
 
   //
-  // Al frame
-  //
-  G4VSolid *al_body_solid = new G4Box("al_body",al_body_sizeX/2.0,al_body_sizeY/2.0,al_body_sizeZ/2.0);
-  G4LogicalVolume *al_body_logical = new G4LogicalVolume(al_body_solid,Aluminum,"al_body");
-  Ta.setX(al_body_X0);
-  Ta.setY(al_body_Y0);
-  Ta.setZ(al_body_Z0);
-  Tr = G4Transform3D(Ra, Ta);
-  G4VPhysicalVolume *al_body_physical = new G4PVPlacement(Tr,              //Transformation
-							  al_body_logical, //its logical volume				 
-							  "Sensitive",     //its name
-							  world_logical,   //its mother  volume
-							  false,           //no boolean operation
-							  0);	           //copy number
-  al_body_physical->GetName();
-
-  //
-  // C4F10
-  //
-  G4VSolid *c4f10_body_solid = new G4Box("c4f10_body",c4f10_body_sizeX/2.0,c4f10_body_sizeY/2.0,c4f10_body_sizeZ/2.0);
-  G4LogicalVolume *c4f10_body_logical = new G4LogicalVolume(c4f10_body_solid,C4F10,"c4f10_body");
-  Ta.setX(c4f10_body_X0);
-  Ta.setY(c4f10_body_Y0);
-  Ta.setZ(c4f10_body_Z0);
-  Tr = G4Transform3D(Ra, Ta);
-  G4VPhysicalVolume *c4f10_body_physical = new G4PVPlacement(Tr,                 //Transformation
-							     c4f10_body_logical, //its logical volume				 
-							     "Sensitive",        //its name
-							     al_body_logical,    //its mother  volume
-							     false,              //no boolean operation
-							     0);	         //copy number
-  c4f10_body_physical->GetName();
-
-  //
-  // Aerogel
-  //
-  G4VSolid *aerogel_body_solid = new G4Box("aerogel_body",aerogel_body_sizeX/2.0,aerogel_body_sizeY/2.0,aerogel_body_sizeZ/2.0);
-  G4LogicalVolume *aerogel_body_logical = new G4LogicalVolume(aerogel_body_solid,Aerogel,"aerogel_body");
-  Ta.setX(aerogel_body_X0);
-  Ta.setY(aerogel_body_Y0);
-  Ta.setZ(aerogel_body_Z0);
-  Tr = G4Transform3D(Ra, Ta);
-  /*
-  G4VPhysicalVolume *aerogel_body_physical = new G4PVPlacement(Tr,                 //Transformation
-							       aerogel_body_logical, //its logical volume				 
-							       "aerogel_body",        //its name
-							       c4f10_body_logical,    //its mother  volume
-							       false,              //no boolean operation
-							       0);	         //copy number
-  aerogel_body_physical->GetName();
-  */
-
-  //
-  // Sensitive volume
-  //
+  // sensitive
+  //  
+  G4RotationMatrix Ra_sensitive;
+  G4ThreeVector Ta_sensitive;
+  G4Transform3D Tr_sensitive;
   G4VSolid *sensitive_solid = new G4Box("Sensitive", sensitive_sizeX/2.0, sensitive_sizeY/2.0, sensitive_sizeZ/2.0);
-  G4LogicalVolume *sensitive_logical = new G4LogicalVolume(sensitive_solid, Aluminum,"Sensitive");
-  Ta.setX(sensitive_X0);
-  Ta.setY(sensitive_Y0);
-  Ta.setZ(sensitive_Z0);
-  Ra.rotateX(-sensitive_angle);
-  Tr = G4Transform3D(Ra, Ta);
-  G4VPhysicalVolume *sensitive_physical_top = new G4PVPlacement(Tr,                //Transformation
-								sensitive_logical, //its logical volume				 
-								"Sensitive",       //its name
-								c4f10_body_logical,     //its mother  volume
-								false,	           //no boolean operation
-								0);	           //copy number
-  Ra.rotateX(sensitive_angle);
-  sensitive_physical_top->GetName();
-
-  Ta.setX(sensitive_X0);
-  Ta.setY(-sensitive_Y0);
-  Ta.setZ(sensitive_Z0);
-  Ra.rotateX(sensitive_angle);
-  Tr = G4Transform3D(Ra, Ta);
-  G4VPhysicalVolume *sensitive_physical_bot = new G4PVPlacement(Tr,                //Transformation
-								sensitive_logical, //its logical volume				 
-								"Sensitive",       //its name
-								c4f10_body_logical,     //its mother  volume
-								false,	           //no boolean operation
-								0);	           //copy number
-  Ra.rotateX(-sensitive_angle);
-sensitive_physical_bot->GetName();
+  G4LogicalVolume *sensitive_logical = new G4LogicalVolume(sensitive_solid, C12H26,"Sensitive");
+  Ta_sensitive.setX(sensitive_X0);
+  Ta_sensitive.setY(sensitive_Y0);
+  Ta_sensitive.setZ(sensitive_Z0);
+  Tr_sensitive = G4Transform3D(Ra_sensitive, Ta_sensitive);
+  new G4PVPlacement(Tr_sensitive,            //Transformation
+		    sensitive_logical,       //its logical volume				 
+		    "Sensitive",             //its name
+		    mineralOil_logical,      //its mother  volume
+		    false,	             //no boolean operation
+		    0,                       //copy number
+		    overlapsChecking);       //overlapsChecking
 
   //
-  // Spherical mirrors top
+  // sensitive shield
+  //  
+  G4RotationMatrix Ra_sensitiveShield;
+  G4ThreeVector Ta_sensitiveShield;
+  G4Transform3D Tr_sensitiveShield;
+  G4VSolid *sensitiveShield_solid = new G4Box("Shield", sensitiveShield_sizeX/2.0, sensitiveShield_sizeY/2.0, sensitiveShield_sizeZ/2.0);
+  G4LogicalVolume *sensitiveShield_logical = new G4LogicalVolume(sensitiveShield_solid, Aluminum,"Shield");
+  Ta_sensitiveShield.setX(sensitiveShield_X0);
+  Ta_sensitiveShield.setY(sensitiveShield_Y0);
+  Ta_sensitiveShield.setZ(sensitiveShield_Z0);
+  Tr_sensitiveShield = G4Transform3D(Ra_sensitiveShield, Ta_sensitiveShield);
+  new G4PVPlacement(Tr_sensitiveShield,      //Transformation
+		    sensitiveShield_logical, //its logical volume				 
+		    "Shield",                //its name
+		    mineralOil_logical,      //its mother  volume
+		    false,	             //no boolean operation
+		    0,                       //copy number
+		    overlapsChecking);       //overlapsChecking
+  
   //
-  G4VSolid *sphericalMirror_body_solid = new G4Sphere("sphericalMirror_body",
-						      sphericalMirror_R,
-						      sphericalMirror_R + sphericalMirror_Thikness,
-						      sphericalMirror_pSPhi,
-						      sphericalMirror_pDPhi,
-						      sphericalMirror_pSTheta,
-						      sphericalMirror_pDTheta);
-
-  G4VSolid *box_solid = new G4Box("box_solid",820*mm/2.0,600*mm/2.0,50*cm/2.0);
-
-  G4IntersectionSolid *sphMirror = new G4IntersectionSolid("sphMirror",sphericalMirror_body_solid,box_solid,
-							   0,G4ThreeVector(0*cm,0.0*cm, sphericalMirror_R));
-  
-  G4LogicalVolume *sphericalMirror_body_logical = new G4LogicalVolume(sphMirror,AluminumMirr,"sphericalMirror_body");
-  G4LogicalVolume *sphericalMirror_body_logical_h = new G4LogicalVolume(sphericalMirror_body_solid,AluminumMirr,"sphericalMirror_body");
-
-  sphericalMirror_body_logical->GetName();
-  sphericalMirror_body_logical_h->GetName();
-  
-  Ta.setX(sphericalMirror_body_X0);
-  Ta.setY(sphericalMirror_body_Y0);
-  Ta.setZ(sphericalMirror_body_Z0);
-  Ra.rotateX(sphericalMirror_angle);
-  Tr = G4Transform3D(Ra, Ta);
-  G4VPhysicalVolume *sphericalMirror_body_physical_top = new G4PVPlacement(Tr,                           //Transformation
-									   sphericalMirror_body_logical, //its logical volume				 
-									   "sphericalMirror_body",       //its name
-									   c4f10_body_logical,           //its mother  volume
-									   false,                        //no boolean operation
-									   0);	                         //copy number
-  Ra.rotateX(-sphericalMirror_angle);
-  Tr = G4Transform3D(Ra, Ta);
-
-  sphericalMirror_body_physical_top->GetName();
-
-  Ta.setX(sphericalMirror_body_X0);
-  Ta.setY(-sphericalMirror_body_Y0);
-  Ta.setZ(sphericalMirror_body_Z0);
-  Ra.rotateX(-sphericalMirror_angle);
-  Tr = G4Transform3D(Ra, Ta);
-  G4VPhysicalVolume *sphericalMirror_body_physical_bot = new G4PVPlacement(Tr,                           //Transformation
-									   sphericalMirror_body_logical, //its logical volume				 
-									   "sphericalMirror_body",       //its name
-									   c4f10_body_logical,           //its mother  volume
-									   false,                        //no boolean operation
-									   0);	                     //copy number
-  Ra.rotateX(sphericalMirror_angle);
-  Tr = G4Transform3D(Ra, Ta);
-  sphericalMirror_body_physical_bot->GetName();
-
-  G4VSolid *flatMirror_solid = new G4Box("flatMirror_solid",flatMirror_lx/2.0,flatMirror_ly/2.0,flatMirror_lz/2.0);
-  G4LogicalVolume *flatMirror_logical = new G4LogicalVolume(flatMirror_solid,AluminumMirr,"flatMirror");
-  G4VPhysicalVolume *flatMirror_physical = new G4PVPlacement(0,G4ThreeVector(),world_logical,"flatMirror",0,false,0);
-  Ta.setX(flatMirror_X0);
-  Ta.setY(flatMirror_Y0);
-  Ta.setZ(flatMirror_Z0);
-  Ra.rotateX(flatMirror_angle);
-  Tr = G4Transform3D(Ra, Ta);
-  G4VPhysicalVolume *flatMirror_physical_top = new G4PVPlacement(Tr,                  //Transformation
-								 flatMirror_logical,  //its logical volume				 
-								 "flatMirror_body",   //its name
-								 c4f10_body_logical,  //its mother  volume
-								 false,               //no boolean operation
-								 0);	          //copy number
-  Ra.rotateX(-flatMirror_angle);
-  Ta.setX(flatMirror_X0);
-  Ta.setY(-flatMirror_Y0);
-  Ta.setZ(flatMirror_Z0);
-  Ra.rotateX(-flatMirror_angle);
-  Tr = G4Transform3D(Ra, Ta);
-  G4VPhysicalVolume *flatMirror_physical_bot = new G4PVPlacement(Tr,                  //Transformation
-								 flatMirror_logical,  //its logical volume				 
-								 "flatMirror_body",   //its name
-								 c4f10_body_logical,  //its mother  volume
-								 false,               //no boolean operation
-								 0);	          //copy number
-  Ra.rotateX(flatMirror_angle);
-
-  flatMirror_physical->GetName();
-  flatMirror_physical_top->GetName();
-  flatMirror_physical_bot->GetName();
+  // Parabolic mirror
+  //
+  //
+  G4Box* parabolicMirrorFrame_solid = new G4Box("parabolicMirrorFrame", parabolicMirrorFrame_sizeX/2.0, parabolicMirrorFrame_sizeY/2.0, parabolicMirrorFrame_sizeZ/2.0);
+  G4Paraboloid* parabolicMirrorSub_solid = new G4Paraboloid("parabolicMirrorSub", parabolicMirrorSub_H/2.0, parabolicMirrorSub_R1, parabolicMirrorSub_R2);
+  G4RotationMatrix* rotMatrix = new G4RotationMatrix();
+  G4ThreeVector transVector(0.0,
+			    0.0,
+			    parabolicMirrorFrame_minimum_wall_thickness-(parabolicMirrorFrame_sizeZ - parabolicMirrorSub_H)/2.0);
+  G4SubtractionSolid *parabolicMirror_solid = new G4SubtractionSolid("parabolicMirror_solid",parabolicMirrorFrame_solid,parabolicMirrorSub_solid,rotMatrix,transVector);
+  G4LogicalVolume *parabolicMirror_logical = new G4LogicalVolume(parabolicMirror_solid, Aluminum,"parabolicMirror");
+  G4RotationMatrix Ra_parabolicMirror;
+  G4ThreeVector Ta_parabolicMirror;
+  G4Transform3D Tr_parabolicMirror;
+  Ta_parabolicMirror.setX(parabolicMirror_X0);
+  Ta_parabolicMirror.setY(parabolicMirror_Y0);
+  Ta_parabolicMirror.setZ(parabolicMirror_Z0);
+  Tr_parabolicMirror = G4Transform3D(Ra_parabolicMirror, Ta_parabolicMirror);
+  new G4PVPlacement(Tr_parabolicMirror,      //Transformation
+		    parabolicMirror_logical, //its logical volume				 
+		    "parabolicMirror",       //its name
+		    mineralOil_logical,      //its mother  volume
+		    false,	             //no boolean operation
+		    0,                       //copy number
+		    overlapsChecking);       //overlapsChecking
+    
 
   //
   // Set Visualization Attributes
   //
-  //G4Color blue        = G4Color(0., 0., 1.);
-  //G4Color green       = G4Color(0., 1., 0.);
+  G4Color blue        = G4Color(0., 0., 1.);
+  G4Color green       = G4Color(0., 1., 0.);
   G4Color red         = G4Color(1., 0., 0.);
   G4Color white       = G4Color(1., 1., 1.);
-  //G4Color cyan        = G4Color(0., 1., 1.);
   G4Color DircColor   = G4Color(0.0, 0.0, 1.0, 0.2);
   G4Color SensColor   = G4Color(0.0, 1.0, 1.0, 0.1);
 
   worldVisAtt->SetColor(white);
   worldVisAtt->SetVisibility(true);
   quartzVisAtt->SetColor(DircColor);
-  quartzVisAtt->SetVisibility(true);
-  
-  sensitiveVisAtt->SetColor(red);
+  quartzVisAtt->SetVisibility(true);  
+  sensitiveVisAtt->SetColor(SensColor);
   sensitiveVisAtt->SetVisibility(true);
-  absVisAtt->SetColor(SensColor);
-  absVisAtt->SetVisibility(true);
-
-
-  sphericalMirror_body_logical->SetVisAttributes(quartzVisAtt);
-  flatMirror_logical->SetVisAttributes(quartzVisAtt);
 
   sensitive_logical->SetVisAttributes(sensitiveVisAtt);
-  al_body_logical->SetVisAttributes(absVisAtt);
-  c4f10_body_logical->SetVisAttributes(absVisAtt);
+  world_logical->SetVisAttributes(worldVisAtt);
 
-  aerogel_body_logical->SetVisAttributes(quartzVisAtt);
+  //sphericalMirror_body_logical->SetVisAttributes(quartzVisAtt);
+  //flatMirror_logical->SetVisAttributes(quartzVisAtt);
+  //al_body_logical->SetVisAttributes(absVisAtt);
+  //c4f10_body_logical->SetVisAttributes(absVisAtt);
+  //aerogel_body_logical->SetVisAttributes(quartzVisAtt);
 
-  //world.logical->SetVisAttributes(worldVisAtt);
-  
+
   //
   // Define Optical Borders
   //
+  // Define mirror surface
+  const G4int num2 = 36;
+  //G4double EfficiencyMirrors[num2];
+  G4double WaveLength[num2];
+  G4double PhotonEnergy[num2];
+  //G4double MirrorReflectivity[num2];
+  for (G4int i=0; i<num2; i++) {
+    WaveLength[i] = (300 + i*10)*nanometer;
+    PhotonEnergy[num2 - (i+1)] = twopi*hbarc/WaveLength[i];
+    //EfficiencyMirrors[i] = 0.0;
+    //MirrorReflectivity[i]=0.85;
+  }
+  //
+  G4double MirrorReflectivity[num2]=
+    {0.87,0.88,0.885,0.89,0.895,0.9,0.905,0.91,0.915,0.92,0.923,0.9245,
+     0.926,0.928,0.93,0.935,0.936,0.937,0.938,0.94,0.94,0.939,0.9382,
+     0.938,0.937,0.937,0.936,0.935,0.934,0.932,0.93,0.928,0.926,0.924,
+     0.922,0.92};
+  //
+  G4MaterialPropertiesTable* MirrorMPT = new G4MaterialPropertiesTable();
+  MirrorMPT->AddProperty("REFLECTIVITY", PhotonEnergy, MirrorReflectivity, num2);
+  //MirrorMPT->AddProperty("EFFICIENCY" , PhotonEnergy, EfficiencyMirrors,  num2);
+
+  G4OpticalSurface* OpMirrorSurface = new G4OpticalSurface("MirrorSurface");
+  OpMirrorSurface->SetType(dielectric_metal);
+  OpMirrorSurface->SetFinish(polished);
+  OpMirrorSurface->SetModel(glisur);
+  OpMirrorSurface->SetMaterialPropertiesTable(MirrorMPT);
+
+  new G4LogicalSkinSurface("MirrorSurfT",
+  			   parabolicMirror_logical, OpMirrorSurface);
+  ///////////////////////////////////////
+
+
+  
+  /*
 
   // Surface for killing photons at borders
   const G4int num1 = 2;
@@ -557,13 +523,13 @@ sensitive_physical_bot->GetName();
     EfficiencyMirrors[i] = 0.0;
     //MirrorReflectivity[i]=0.85;
   }
-  /*
-  G4double MirrorReflectivity[num2]=
-    {0.87,0.88,0.885,0.89,0.895,0.9,0.905,0.91,0.915,0.92,0.923,0.9245,
-     0.926,0.928,0.93,0.935,0.936,0.937,0.938,0.94,0.94,0.939,0.9382,
-     0.938,0.937,0.937,0.936,0.935,0.934,0.932,0.93,0.928,0.926,0.924,
-     0.922,0.92};
-  */
+  //
+  //G4double MirrorReflectivity[num2]=
+  //  {0.87,0.88,0.885,0.89,0.895,0.9,0.905,0.91,0.915,0.92,0.923,0.9245,
+  //   0.926,0.928,0.93,0.935,0.936,0.937,0.938,0.94,0.94,0.939,0.9382,
+  //   0.938,0.937,0.937,0.936,0.935,0.934,0.932,0.93,0.928,0.926,0.924,
+  //   0.922,0.92};
+  //
   G4MaterialPropertiesTable* MirrorMPT = new G4MaterialPropertiesTable();
   //MirrorMPT->AddProperty("REFECTIVITY", PhotonEnergy, MirrorReflectivity, num2);
   MirrorMPT->AddProperty("EFFICIENCY" , PhotonEnergy, EfficiencyMirrors,  num2);
@@ -580,7 +546,7 @@ sensitive_physical_bot->GetName();
   OpMirrorSurface->SetMaterialPropertiesTable(MirrorMPT);
   ///////////////////////////////////////
 
-
+  */
   
   // 
   // Sensitive detector definition

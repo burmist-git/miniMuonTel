@@ -45,6 +45,7 @@ private:
   G4Material *Aluminum;
   G4Material *AluminumMirr;
   G4Material *SiO2;
+  G4Material *C12H26;  //mineral oil
   G4Material* SiO2_cladd;
   G4Material* SiO2_coat; 
  
